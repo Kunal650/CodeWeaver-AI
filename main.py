@@ -16,6 +16,149 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+# =============================================================================
+# VS Code Theme - Custom CSS Injection
+# =============================================================================
+
+def inject_custom_css():
+    """
+    Inject VS Code-style CSS to create an IDE-like experience.
+    Hides default Streamlit elements and applies dark theme styling.
+    """
+    st.markdown("""
+    <style>
+        /* ============================================
+           VS CODE THEME - HIDE DEFAULT ELEMENTS
+           ============================================ */
+        
+        /* Hide Deploy button */
+        .stDeployButton {
+            display: none !important;
+        }
+        
+        /* Hide Hamburger menu */
+        #MainMenu {
+            visibility: hidden !important;
+        }
+        
+        /* Hide header */
+        header {
+            visibility: hidden !important;
+        }
+        
+        /* Hide footer */
+        footer {
+            visibility: hidden !important;
+        }
+        
+        /* ============================================
+           VS CODE STYLE - CODE BLOCKS
+           ============================================ */
+        
+        /* Code block styling - VS Code editor look */
+        pre, code {
+            font-family: 'Consolas', 'Courier New', 'Monaco', 'Menlo', monospace !important;
+            font-size: 14px !important;
+            line-height: 1.5 !important;
+        }
+        
+        /* Code block container */
+        .stCodeBlock {
+            background-color: #1e1e1e !important;
+            border: 1px solid #3c3c3c !important;
+            border-radius: 6px !important;
+        }
+        
+        /* Syntax highlighting - VS Code Dark+ theme colors */
+        .stCodeBlock code {
+            background-color: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+        
+        /* Code block with line numbers feel */
+        pre {
+            background-color: #1e1e1e !important;
+            border: 1px solid #3c3c3c !important;
+            border-radius: 6px !important;
+            padding: 12px 16px !important;
+        }
+        
+        /* ============================================
+           VS CODE STYLE - CHAT INPUT
+           ============================================ */
+        
+        /* Chat input dark border */
+        .stChatInput {
+            border-color: #3c3c3c !important;
+        }
+        
+        .stChatInput > div {
+            background-color: #252526 !important;
+            border: 1px solid #3c3c3c !important;
+            border-radius: 8px !important;
+        }
+        
+        .stChatInput input, .stChatInput textarea {
+            background-color: #252526 !important;
+            color: #d4d4d4 !important;
+            border: none !important;
+        }
+        
+        .stChatInput input:focus, .stChatInput textarea:focus {
+            border-color: #007acc !important;
+            box-shadow: 0 0 0 1px #007acc !important;
+        }
+        
+        /* ============================================
+           VS CODE STYLE - SCROLLBARS
+           ============================================ */
+        
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f4f4f;
+        }
+        
+        /* ============================================
+           VS CODE STYLE - SIDEBAR
+           ============================================ */
+        
+        [data-testid="stSidebar"] {
+            background-color: #252526 !important;
+            border-right: 1px solid #3c3c3c !important;
+        }
+        
+        /* Activity bar accent */
+        [data-testid="stSidebar"]::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #007acc 0%, #0e639c 100%);
+        }
+        
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# Call inject_custom_css at the top of the app
+inject_custom_css()
+
 # =============================================================================
 # Custom CSS for Dark Theme & Professional Styling
 # =============================================================================
