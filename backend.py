@@ -427,6 +427,81 @@ Provide the refined code below:"""
             print(f"Refinement failed: {str(e)}")
             return original_code
 
+    def analyze_image(self, image_data: bytes, user_prompt: str = "") -> str:
+        """
+        Analyze an uploaded image and generate code to recreate the UI.
+        Uses Gemini's Vision capabilities for multimodal understanding.
+        
+        Vision-to-Code: Converts UI screenshots to production-ready code.
+        
+        Args:
+            image_data: Raw bytes of the uploaded image (PNG/JPG/JPEG).
+            user_prompt: Optional additional instructions from user.
+        
+        Returns:
+            Generated HTML/CSS/React code to recreate the UI.
+        """
+        try:
+            from PIL import Image
+            import io
+            
+            # Load and validate the image
+            image = Image.open(io.BytesIO(image_data))
+            
+            # Specialized Vision-to-Code system prompt
+            vision_prompt = """You are an expert Frontend Engineer specializing in pixel-perfect UI recreation.
+
+TASK: Analyze this screenshot and write the EXACT code required to recreate this UI.
+
+RULES:
+1. Write complete, production-ready code - NO PLACEHOLDERS
+2. Use modern HTML5 + Tailwind CSS (preferred) OR React with Tailwind
+3. Match colors, spacing, typography, and layout EXACTLY
+4. Include responsive design considerations
+5. Add appropriate hover states and interactions
+6. Use semantic HTML elements
+7. Include all icons (use Heroicons or similar)
+8. Specify exact color codes (extract from image)
+
+OUTPUT FORMAT:
+### index.html (or Component.jsx for React)
+```html
+[Complete code here]
+```
+
+### styles.css (if needed)
+```css
+[Additional styles if Tailwind isn't sufficient]
+```
+
+IMPORTANT: The goal is PIXEL-PERFECT recreation. Be precise with:
+- Exact padding/margin values
+- Font sizes and weights
+- Border radius values
+- Shadow effects
+- Color gradients"""
+
+            # Add user's additional instructions if provided
+            if user_prompt:
+                vision_prompt += f"\n\nADDITIONAL USER INSTRUCTIONS:\n{user_prompt}"
+            
+            # Create multimodal content for Gemini
+            response = self.model.generate_content([vision_prompt, image])
+            
+            if response and response.text:
+                return response.text
+            else:
+                return "⚠️ Could not analyze the image. Please try again with a clearer screenshot."
+                
+        except ImportError:
+            return "⚠️ Pillow library not installed. Run: pip install Pillow"
+        except Exception as e:
+            error_msg = str(e)
+            if "image" in error_msg.lower():
+                return f"⚠️ Image processing error: {error_msg}"
+            else:
+                return f"⚠️ Vision analysis failed: {error_msg}"
+
     def _build_prompt(self, user_prompt: str, context: str = "") -> str:
         """
         Build the complete prompt with context.

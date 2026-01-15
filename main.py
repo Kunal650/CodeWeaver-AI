@@ -744,6 +744,60 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # Vision-to-Code Section
+        st.markdown("### 📷 Vision to Code")
+        
+        uploaded_image = st.file_uploader(
+            "Upload UI Screenshot (Vision to Code)",
+            type=["png", "jpg", "jpeg"],
+            help="Upload a UI screenshot and CodeWeaver will generate the HTML/CSS/React code to recreate it pixel-perfectly."
+        )
+        
+        if uploaded_image:
+            # Display the uploaded image
+            st.image(uploaded_image, caption="Uploaded UI Screenshot", use_container_width=True)
+            
+            # Store in session state
+            st.session_state.uploaded_image = uploaded_image
+            
+            # Optional additional instructions
+            vision_instructions = st.text_area(
+                "Additional Instructions (Optional)",
+                placeholder="e.g., 'Use React', 'Add dark mode', 'Make it responsive'",
+                height=70
+            )
+            
+            if st.button("🎨 Generate Code from Screenshot", use_container_width=True):
+                if st.session_state.brain:
+                    with st.spinner("🔍 Analyzing screenshot and generating code..."):
+                        # Read image data
+                        uploaded_image.seek(0)
+                        image_bytes = uploaded_image.read()
+                        
+                        # Call the vision analysis function
+                        result = st.session_state.brain.analyze_image(image_bytes, vision_instructions)
+                        
+                        # Add to chat history
+                        user_msg = f"📷 [Vision-to-Code] Analyze this UI screenshot: {uploaded_image.name}"
+                        if vision_instructions:
+                            user_msg += f"\nInstructions: {vision_instructions}"
+                        
+                        st.session_state.chat_history.append({
+                            "role": "user",
+                            "content": user_msg
+                        })
+                        st.session_state.chat_history.append({
+                            "role": "assistant",
+                            "content": result
+                        })
+                        
+                        st.success("✅ Code generated! Check the chat.")
+                        st.rerun()
+                else:
+                    st.warning("⚠️ Please connect to AI first (enter API key and click Connect)")
+        
+        st.markdown("---")
+        
         # Actions
         st.markdown("### ⚡ Quick Actions")
         
