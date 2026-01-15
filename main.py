@@ -329,6 +329,67 @@ def detect_primary_language(code: str) -> str:
         return 'python'  # Default
 
 
+def render_file_tree(files: list) -> str:
+    """
+    Generate an ASCII-style tree structure for uploaded files.
+    Similar to the Linux 'tree' command output.
+    
+    Args:
+        files: List of uploaded file objects with .name attribute
+    
+    Returns:
+        Formatted ASCII tree string
+    """
+    if not files:
+        return "📂 (No files uploaded)"
+    
+    # Get file names and organize by extension
+    file_names = sorted([f.name for f in files])
+    
+    # Build tree structure
+    tree_lines = ["📂 **Project Context**"]
+    
+    # Group files by extension for better visualization
+    extensions = {}
+    for name in file_names:
+        ext = name.split('.')[-1] if '.' in name else 'other'
+        if ext not in extensions:
+            extensions[ext] = []
+        extensions[ext].append(name)
+    
+    # Emoji mapping for file types
+    ext_emoji = {
+        'py': '🐍',
+        'js': '📜',
+        'jsx': '⚛️',
+        'ts': '📘',
+        'tsx': '⚛️',
+        'html': '🌐',
+        'css': '🎨',
+        'json': '📋',
+        'md': '📝',
+        'txt': '📄',
+        'other': '📁'
+    }
+    
+    total_files = len(file_names)
+    current_idx = 0
+    
+    for ext, names in extensions.items():
+        emoji = ext_emoji.get(ext, '📄')
+        for i, name in enumerate(names):
+            current_idx += 1
+            is_last = current_idx == total_files
+            prefix = "└── " if is_last else "├── "
+            tree_lines.append(f"{prefix}{emoji} `{name}`")
+    
+    # Add summary
+    tree_lines.append("")
+    tree_lines.append(f"**{total_files} file(s)** in context")
+    
+    return "\n".join(tree_lines)
+
+
 def parse_multi_file_response(response: str) -> list:
     """
     Parse AI response for multi-file markers (### filename.ext).
@@ -711,10 +772,17 @@ def render_sidebar():
             with col2:
                 st.metric("Chunks", stats['chunks_created'])
             
+            # Project Context Map - ASCII tree visualization
             if stats['processed_files']:
-                with st.expander("📄 Loaded Files"):
-                    for f in stats['processed_files']:
-                        st.markdown(f"• `{f}`")
+                with st.expander("� Current Context Map", expanded=True):
+                    # Create file objects with name attribute for render_file_tree
+                    class FileObj:
+                        def __init__(self, name):
+                            self.name = name
+                    
+                    file_objects = [FileObj(f) for f in stats['processed_files']]
+                    tree_output = render_file_tree(file_objects)
+                    st.markdown(tree_output)
         
         st.markdown("---")
         
