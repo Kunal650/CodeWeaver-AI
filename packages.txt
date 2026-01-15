@@ -1,5 +1,2 @@
-# Linux system dependencies for Streamlit Community Cloud
-# Required for FAISS vector store compilation
-
 build-essential
 cmake
