@@ -516,6 +516,55 @@ IMPORTANT: The goal is PIXEL-PERFECT recreation. Be precise with:
             else:
                 return f"⚠️ Vision analysis failed: {error_msg}"
 
+    def transcribe_audio(self, audio_data: bytes, mime_type: str = "audio/wav") -> str:
+        """
+        Transcribe audio input using Gemini's native audio understanding.
+        Uses the free Gemini API for speech-to-text conversion.
+        
+        Voice-to-Code: Allows users to speak their coding requests.
+        
+        Args:
+            audio_data: Raw bytes of the recorded audio.
+            mime_type: MIME type of the audio (e.g., "audio/wav", "audio/webm").
+        
+        Returns:
+            Transcribed text from the audio, or error message.
+        """
+        try:
+            # Create audio content for Gemini
+            # Gemini can understand audio directly when passed as inline data
+            audio_part = {
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": audio_data
+                }
+            }
+            
+            # Prompt for transcription
+            transcription_prompt = """Listen to this audio and transcribe exactly what the user is saying.
+            
+Return ONLY the transcribed text, nothing else. Do not add any commentary or formatting.
+If you cannot understand the audio, return: "[UNCLEAR AUDIO]"
+"""
+            
+            # Use Gemini's multimodal capabilities for audio
+            response = self.model.generate_content([transcription_prompt, audio_part])
+            
+            if response and response.text:
+                transcription = response.text.strip()
+                print(f"🎤 Transcribed: {transcription}")
+                return transcription
+            else:
+                return "[UNCLEAR AUDIO]"
+                
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Audio transcription error: {error_msg}")
+            if "audio" in error_msg.lower() or "media" in error_msg.lower():
+                return f"⚠️ Audio processing error: {error_msg}"
+            else:
+                return f"⚠️ Transcription failed: {error_msg}"
+
     def _build_prompt(self, user_prompt: str, context: str = "") -> str:
         """
         Build the complete prompt with context.

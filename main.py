@@ -1104,6 +1104,78 @@ def render_chat():
                         "role": "assistant",
                         "content": error_msg
                     })
+    
+    # Voice Input Section
+    st.markdown("---")
+    
+    voice_col1, voice_col2 = st.columns([3, 1])
+    
+    with voice_col1:
+        st.markdown("""
+        <div style="font-size: 0.85rem; color: #9ca3af; margin-bottom: 0.5rem;">
+            🎤 <strong>Voice Input</strong> — Speak your coding request
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with voice_col2:
+        st.markdown("""
+        <div style="font-size: 0.75rem; color: #6b7280; text-align: right;">
+            Click microphone → speak → release
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Audio input widget
+    audio_input = st.audio_input("Record your voice command", key="voice_input", label_visibility="collapsed")
+    
+    if audio_input:
+        # Process the recorded audio
+        with st.spinner("🎤 Transcribing your voice..."):
+            try:
+                # Read audio bytes
+                audio_bytes = audio_input.read()
+                
+                # Determine MIME type based on audio format (Streamlit uses WAV by default)
+                mime_type = "audio/wav"
+                
+                # Transcribe using Gemini
+                transcribed_text = st.session_state.brain.transcribe_audio(audio_bytes, mime_type)
+                
+                # Check if transcription was successful
+                if transcribed_text and not transcribed_text.startswith("⚠️") and transcribed_text != "[UNCLEAR AUDIO]":
+                    st.success(f"🎤 **You said:** {transcribed_text}")
+                    
+                    # Process the transcribed text as a prompt
+                    st.session_state.chat_history.append({
+                        "role": "user",
+                        "content": f"🎤 [Voice] {transcribed_text}"
+                    })
+                    
+                    # Generate response
+                    with st.chat_message("assistant", avatar="🧬"):
+                        with st.spinner("🧬 CodeWeaver is thinking..."):
+                            context = ""
+                            if st.session_state.memory and st.session_state.files_uploaded:
+                                context = st.session_state.memory.retrieve_context(transcribed_text)
+                            
+                            response = st.session_state.brain.generate_code(
+                                transcribed_text, 
+                                context, 
+                                enable_refiner=st.session_state.enable_refiner
+                            )
+                            
+                            render_response_with_code(response)
+                            
+                            st.session_state.chat_history.append({
+                                "role": "assistant",
+                                "content": response
+                            })
+                    
+                    st.rerun()
+                else:
+                    st.warning(f"Could not transcribe audio: {transcribed_text}")
+                    
+            except Exception as e:
+                st.error(f"🎤 Voice processing error: {str(e)}")
 
 
 # =============================================================================
