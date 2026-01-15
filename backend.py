@@ -4,6 +4,8 @@ The brain behind the AI coding assistant.
 """
 
 import os
+import shutil
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -17,6 +19,127 @@ except ImportError:
         "google-generativeai package not found. "
         "Please install it with: pip install google-generativeai"
     )
+
+
+# =============================================================================
+# Agentic File Editor - Safe File Writing with Backups
+# =============================================================================
+
+class FileEditor:
+    """
+    Agentic file editing capabilities with safety features.
+    Creates backups before overwriting existing files.
+    """
+    
+    # Directory for storing backups
+    BACKUP_DIR = ".codeweaver_backups"
+    
+    @staticmethod
+    def safe_write_file(filepath: str, content: str) -> dict:
+        """
+        Safely write content to a file with automatic backup.
+        
+        Safety Features:
+        1. Checks if file exists
+        2. Creates timestamped backup if file exists
+        3. Only then overwrites the file
+        
+        Args:
+            filepath: Path to the file to write.
+            content: Content to write to the file.
+        
+        Returns:
+            Dictionary with status, message, and backup_path (if created).
+        """
+        result = {
+            "success": False,
+            "message": "",
+            "backup_path": None,
+            "filepath": filepath
+        }
+        
+        try:
+            # Normalize the path
+            filepath = os.path.normpath(filepath)
+            
+            # Get the directory and filename
+            directory = os.path.dirname(filepath)
+            filename = os.path.basename(filepath)
+            
+            # Create directory if it doesn't exist
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory)
+            
+            # Check if file already exists - create backup
+            if os.path.exists(filepath):
+                # Create backup directory
+                backup_dir = os.path.join(directory or ".", FileEditor.BACKUP_DIR)
+                if not os.path.exists(backup_dir):
+                    os.makedirs(backup_dir)
+                
+                # Generate timestamped backup filename
+                name, ext = os.path.splitext(filename)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_filename = f"{name}_backup_{timestamp}{ext}"
+                backup_path = os.path.join(backup_dir, backup_filename)
+                
+                # Copy existing file to backup
+                shutil.copy2(filepath, backup_path)
+                result["backup_path"] = backup_path
+                result["message"] = f"Backup created: {backup_path}\n"
+            
+            # Write the new content
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            result["success"] = True
+            result["message"] += f"✅ Successfully wrote to: {filepath}"
+            
+            return result
+            
+        except PermissionError:
+            result["message"] = f"❌ Permission denied: Cannot write to {filepath}"
+            return result
+        except Exception as e:
+            result["message"] = f"❌ Error writing file: {str(e)}"
+            return result
+    
+    @staticmethod
+    def read_file(filepath: str) -> dict:
+        """
+        Read content from a file.
+        
+        Args:
+            filepath: Path to the file to read.
+        
+        Returns:
+            Dictionary with success, content, and message.
+        """
+        result = {
+            "success": False,
+            "content": "",
+            "message": ""
+        }
+        
+        try:
+            filepath = os.path.normpath(filepath)
+            
+            if not os.path.exists(filepath):
+                result["message"] = f"❌ File not found: {filepath}"
+                return result
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                result["content"] = f.read()
+            
+            result["success"] = True
+            result["message"] = f"✅ Read {len(result['content'])} characters from {filepath}"
+            return result
+            
+        except Exception as e:
+            result["message"] = f"❌ Error reading file: {str(e)}"
+            return result
+
+
 
 
 # =============================================================================
@@ -211,7 +334,15 @@ class CodeBrain:
 
 6. Tone: Concise, technical, and direct. Do not apologize. Just solve.
 
-7. Web Search: If you lack knowledge about a specific library version, new API, or error code, state that you are searching the web, then use the provided search context to answer."""
+7. Web Search: If you lack knowledge about a specific library version, new API, or error code, state that you are searching the web, then use the provided search context to answer.
+
+8. File Editing Tool: You have a tool called 'safe_write_file' that can write code directly to files. Use it ONLY when the user explicitly says phrases like:
+   - "Apply this fix"
+   - "Write this to file"
+   - "Save this to [filename]"
+   - "Update the file"
+   - "Implement this change"
+   When using this tool, respond with: [APPLY_TO_FILE: filepath] followed by the complete code to write."""
 
     def __init__(self, api_key: str = None, model_name: str = None):
         """

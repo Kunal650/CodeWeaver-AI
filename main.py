@@ -1362,6 +1362,32 @@ def render_chat():
                         enable_refiner=st.session_state.enable_refiner
                     )
                     
+                    # Check for agentic file editing commands
+                    if "[APPLY_TO_FILE:" in response:
+                        from backend import FileEditor
+                        import re
+                        
+                        # Extract file path and code
+                        file_match = re.search(r'\[APPLY_TO_FILE:\s*([^\]]+)\]', response)
+                        if file_match:
+                            filepath = file_match.group(1).strip()
+                            
+                            # Extract the code block after the marker
+                            code_match = re.search(r'```[\w]*\n(.*?)```', response, re.DOTALL)
+                            if code_match:
+                                code_content = code_match.group(1)
+                                
+                                # Use safe_write_file with backup
+                                result = FileEditor.safe_write_file(filepath, code_content)
+                                
+                                if result["success"]:
+                                    st.toast("✅ Changes Applied!", icon="✅")
+                                    if result["backup_path"]:
+                                        st.info(f"📂 Backup created: `{result['backup_path']}`")
+                                    st.success(result["message"])
+                                else:
+                                    st.error(result["message"])
+                    
                     # Render response with proper code highlighting and download
                     render_response_with_code(response)
                     
