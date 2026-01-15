@@ -1,0 +1,1030 @@
+"""
+CodeWeaver AI - Modern Chat Interface
+A professional AI coding assistant with RAG capabilities.
+"""
+
+import streamlit as st
+import os
+import re
+from datetime import datetime
+
+# Page Configuration - Must be first Streamlit command
+st.set_page_config(
+    page_title="CodeWeaver AI",
+    page_icon="🧬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# =============================================================================
+# Custom CSS for Dark Theme & Professional Styling
+# =============================================================================
+
+st.markdown("""
+<style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    /* Global Styles */
+    .stApp {
+        background: linear-gradient(180deg, #0a0a0f 0%, #12121a 50%, #0d0d14 100%);
+    }
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+    }
+    
+    /* Header Styling */
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2.8rem;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 0.3rem;
+        font-family: 'Inter', sans-serif;
+        letter-spacing: -1px;
+    }
+    
+    .sub-header {
+        color: #6b7280;
+        text-align: center;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #111118 0%, #0d0d12 100%);
+        border-right: 1px solid rgba(99, 102, 241, 0.1);
+    }
+    
+    [data-testid="stSidebar"] .stMarkdown h3 {
+        color: #e2e8f0;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 1.5rem;
+    }
+    
+    /* Chat Messages */
+    .chat-message {
+        padding: 1.2rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        font-family: 'Inter', sans-serif;
+        line-height: 1.6;
+    }
+    
+    .user-message {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        margin-left: 2rem;
+    }
+    
+    .assistant-message {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+        border: 1px solid rgba(71, 85, 105, 0.3);
+        margin-right: 2rem;
+    }
+    
+    /* Code blocks */
+    .stCodeBlock {
+        border-radius: 10px !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+    }
+    
+    pre {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    
+    /* Input styling */
+    .stTextInput input, .stTextArea textarea {
+        background: rgba(30, 41, 59, 0.6) !important;
+        border: 1px solid rgba(99, 102, 241, 0.3) !important;
+        border-radius: 10px !important;
+        color: #e2e8f0 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    .stTextInput input:focus, .stTextArea textarea:focus {
+        border-color: #6366f1 !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
+    }
+    
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background: rgba(30, 41, 59, 0.4);
+        border: 2px dashed rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    
+    [data-testid="stFileUploader"]:hover {
+        border-color: #6366f1;
+    }
+    
+    /* Success/Warning/Error messages */
+    .stSuccess {
+        background: rgba(16, 185, 129, 0.1) !important;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        border-radius: 10px !important;
+    }
+    
+    .stWarning {
+        background: rgba(245, 158, 11, 0.1) !important;
+        border: 1px solid rgba(245, 158, 11, 0.3) !important;
+        border-radius: 10px !important;
+    }
+    
+    .stError {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        border-radius: 10px !important;
+    }
+    
+    /* Stats cards */
+    .stat-card {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #818cf8;
+    }
+    
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Divider */
+    hr {
+        border: none;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+        margin: 1.5rem 0;
+    }
+    
+    /* Chat input at bottom */
+    .stChatInput {
+        background: rgba(30, 41, 59, 0.8) !important;
+        border: 1px solid rgba(99, 102, 241, 0.3) !important;
+        border-radius: 12px !important;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-color: #6366f1 !important;
+    }
+    
+    /* Download button styling */
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.4rem 1rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stDownloadButton > button:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
+    }
+    
+    /* Enhanced code block styling for IDE look */
+    .stCodeBlock {
+        background: #0d1117 !important;
+        border-radius: 8px !important;
+        border: 1px solid #30363d !important;
+        margin: 0.5rem 0 !important;
+    }
+    
+    .stCodeBlock pre {
+        background: #0d1117 !important;
+        padding: 1rem !important;
+    }
+    
+    /* Code header bar */
+    .code-header {
+        background: linear-gradient(135deg, #21262d 0%, #161b22 100%);
+        border: 1px solid #30363d;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        padding: 0.5rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8rem;
+        color: #8b949e;
+    }
+    
+    .code-language {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .code-language-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6366f1;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+def extract_code_blocks(text: str) -> list:
+    """
+    Extract code blocks from markdown-formatted text.
+    Returns list of tuples: (language, code, full_match)
+    """
+    # Pattern to match ```language\ncode\n```
+    pattern = r'```(\w*)\n(.*?)```'
+    matches = re.findall(pattern, text, re.DOTALL)
+    
+    blocks = []
+    for lang, code in matches:
+        # Default to python if no language specified
+        language = lang.lower() if lang else 'python'
+        # Map common variations
+        lang_map = {
+            'py': 'python',
+            'js': 'javascript',
+            'ts': 'typescript',
+            'jsx': 'javascript',
+            'tsx': 'typescript',
+            'sh': 'bash',
+            'shell': 'bash',
+            '': 'python'
+        }
+        language = lang_map.get(language, language)
+        blocks.append((language, code.strip()))
+    
+    return blocks
+
+
+def detect_primary_language(code: str) -> str:
+    """Detect the programming language from code content."""
+    # Simple heuristics for language detection
+    if 'def ' in code or 'import ' in code or 'class ' in code and ':' in code:
+        return 'python'
+    elif 'function ' in code or 'const ' in code or 'let ' in code or '=>' in code:
+        return 'javascript'
+    elif 'fn ' in code or 'let mut' in code or '::' in code:
+        return 'rust'
+    elif 'func ' in code or 'package ' in code:
+        return 'go'
+    elif '<html' in code.lower() or '</div>' in code:
+        return 'html'
+    elif 'SELECT ' in code.upper() or 'FROM ' in code.upper():
+        return 'sql'
+    else:
+        return 'python'  # Default
+
+
+def parse_multi_file_response(response: str) -> list:
+    """
+    Parse AI response for multi-file markers (### filename.ext).
+    Returns list of tuples: (filename, language, code)
+    """
+    # Pattern to match ### filename.ext followed by code block
+    pattern = r'###\s+([\w\-\.\/]+)\s*\n```(\w*)\n(.*?)```'
+    matches = re.findall(pattern, response, re.DOTALL)
+    
+    files = []
+    for filename, lang, code in matches:
+        # Determine language from extension if not specified
+        if not lang:
+            ext = filename.split('.')[-1] if '.' in filename else ''
+            ext_to_lang = {
+                'py': 'python',
+                'js': 'javascript',
+                'jsx': 'javascript',
+                'ts': 'typescript',
+                'tsx': 'typescript',
+                'html': 'html',
+                'css': 'css',
+                'json': 'json',
+                'md': 'markdown',
+                'sql': 'sql',
+                'sh': 'bash',
+                'rs': 'rust',
+                'go': 'go',
+                'java': 'java',
+                'cpp': 'cpp',
+                'c': 'c'
+            }
+            lang = ext_to_lang.get(ext, 'python')
+        
+        files.append((filename.strip(), lang.lower(), code.strip()))
+    
+    return files
+
+
+def render_response_with_code(response: str):
+    """
+    Render AI response with proper syntax highlighting and download buttons.
+    Supports multi-file responses with tabbed display.
+    """
+    # First, check for multi-file response (### filename.ext markers)
+    multi_files = parse_multi_file_response(response)
+    
+    if multi_files and len(multi_files) > 1:
+        # Multi-file response - use tabs
+        st.markdown("### 📁 Project Files")
+        st.markdown(f"*{len(multi_files)} files generated*")
+        
+        # Create tabs for each file
+        tab_names = [f"📄 {f[0]}" for f in multi_files]
+        tabs = st.tabs(tab_names)
+        
+        for idx, (tab, (filename, lang, code)) in enumerate(zip(tabs, multi_files)):
+            with tab:
+                # File info header
+                st.markdown(f'''
+                <div class="code-header" style="margin-bottom: 0;">
+                    <div class="code-language">
+                        <span class="code-language-dot"></span>
+                        <span>{filename}</span>
+                    </div>
+                    <span style="color: #6b7280; font-size: 0.75rem;">{lang.upper()}</span>
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                # Code with syntax highlighting
+                st.code(code, language=lang)
+                
+                # Download button for this file
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.download_button(
+                        label=f"📥 Download",
+                        data=code,
+                        file_name=filename,
+                        mime="text/plain",
+                        key=f"download_multi_{idx}_{hash(code)}"
+                    )
+        
+        # Remove the parsed multi-file parts and show remaining text
+        remaining = re.sub(r'###\s+[\w\-\.\/]+\s*\n```\w*\n.*?```', '', response, flags=re.DOTALL)
+        if remaining.strip():
+            st.markdown("---")
+            st.markdown(remaining.strip())
+        
+        return
+    
+    # Single file or regular code blocks
+    code_blocks = extract_code_blocks(response)
+    
+    if code_blocks:
+        # Split response by code blocks and render each part
+        parts = re.split(r'```\w*\n.*?```', response, flags=re.DOTALL)
+        
+        for i, part in enumerate(parts):
+            # Render text part
+            if part.strip():
+                # Clean up any stray ### markers
+                clean_part = re.sub(r'###\s+[\w\-\.\/]+\s*$', '', part, flags=re.MULTILINE)
+                if clean_part.strip():
+                    st.markdown(clean_part.strip())
+            
+            # Render corresponding code block if exists
+            if i < len(code_blocks):
+                lang, code = code_blocks[i]
+                
+                # Check if there's a filename marker before this block
+                filename_match = re.search(r'###\s+([\w\-\.\/]+)\s*$', part, re.MULTILINE)
+                if filename_match:
+                    display_name = filename_match.group(1)
+                    download_filename = display_name
+                else:
+                    display_name = lang.upper()
+                    file_ext = {
+                        'python': '.py',
+                        'javascript': '.js',
+                        'typescript': '.ts',
+                        'html': '.html',
+                        'css': '.css',
+                        'sql': '.sql',
+                        'bash': '.sh',
+                        'rust': '.rs',
+                        'go': '.go',
+                        'java': '.java',
+                        'cpp': '.cpp',
+                        'c': '.c'
+                    }.get(lang, '.txt')
+                    download_filename = f"codeweaver_output{file_ext}"
+                
+                # Code header
+                st.markdown(f'''
+                <div class="code-header">
+                    <div class="code-language">
+                        <span class="code-language-dot"></span>
+                        <span>{display_name}</span>
+                    </div>
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                # Render code with syntax highlighting
+                st.code(code, language=lang)
+                
+                # Download button
+                st.download_button(
+                    label=f"📥 Download {display_name}",
+                    data=code,
+                    file_name=download_filename,
+                    mime="text/plain",
+                    key=f"download_{i}_{hash(code)}"
+                )
+    else:
+        # No code blocks, just render as markdown
+        st.markdown(response)
+
+
+def generate_project_documentation() -> str:
+    """
+    Generate a markdown documentation file from the chat history.
+    Compiles all user prompts and AI code responses into a single document.
+    
+    Returns:
+        Formatted markdown string.
+    """
+    from datetime import datetime as dt
+    
+    # Header
+    doc = f"""# CodeWeaver AI - Project Documentation
+
+Generated on: {dt.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+---
+
+## Session Summary
+
+This document contains the complete interaction history from your CodeWeaver AI session, including all prompts and generated code.
+
+---
+
+"""
+    
+    # Process chat history
+    for idx, message in enumerate(st.session_state.chat_history):
+        if message["role"] == "user":
+            doc += f"## 💬 User Request #{(idx // 2) + 1}\n\n"
+            doc += f"{message['content']}\n\n"
+        else:
+            doc += f"### 🧬 CodeWeaver Response\n\n"
+            doc += f"{message['content']}\n\n"
+            doc += "---\n\n"
+    
+    # Footer
+    doc += """
+---
+
+## Notes
+
+- This documentation was automatically generated by CodeWeaver AI
+- Code blocks are formatted with proper syntax highlighting when viewed in a markdown editor
+- For best results, open this file in VS Code, GitHub, or any markdown-compatible viewer
+
+---
+
+*Powered by CodeWeaver AI - Your Intelligent Coding Companion*
+"""
+    
+    return doc
+
+
+# =============================================================================
+# Session State Initialization
+# =============================================================================
+
+def init_session_state():
+    """Initialize all session state variables."""
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    
+    if "api_key" not in st.session_state:
+        st.session_state.api_key = os.getenv("GOOGLE_API_KEY", "")
+    
+    if "brain" not in st.session_state:
+        st.session_state.brain = None
+    
+    if "memory" not in st.session_state:
+        st.session_state.memory = None
+    
+    if "files_uploaded" not in st.session_state:
+        st.session_state.files_uploaded = False
+    
+    if "memory_stats" not in st.session_state:
+        st.session_state.memory_stats = None
+    
+    if "enable_refiner" not in st.session_state:
+        st.session_state.enable_refiner = False
+
+
+# =============================================================================
+# Backend Initialization
+# =============================================================================
+
+def initialize_backend(api_key: str):
+    """
+    Initialize the CodeBrain and CodeMemory with the provided API key.
+    
+    BYOK Security: API key is passed directly to CodeBrain, not saved to environment.
+    The key exists only in session memory (RAM) for the duration of the session.
+    
+    Args:
+        api_key: The Gemini API key (user's key or admin .env key)
+    
+    Returns:
+        True if initialization successful, False otherwise.
+    """
+    try:
+        # Import backend modules
+        from backend import CodeBrain, CodeMemory
+        
+        # Initialize brain with BYOK support - pass key directly
+        # Security: Key is passed in memory, not saved to environment/disk
+        st.session_state.brain = CodeBrain(api_key=api_key)
+        
+        # Initialize memory (for RAG) with the same key
+        st.session_state.memory = CodeMemory(api_key=api_key)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Failed to initialize: {str(e)}")
+        return False
+
+
+# =============================================================================
+# Sidebar
+# =============================================================================
+
+def render_sidebar():
+    """Render the sidebar with API key input and file upload."""
+    with st.sidebar:
+        # Logo/Brand
+        st.markdown("## 🧬 CodeWeaver")
+        st.markdown("---")
+        
+        # API Key Section - BYOK Architecture
+        st.markdown("### 🔑 API Configuration")
+        
+        # BYOK: API Key input (password type for security)
+        user_api_key = st.text_input(
+            "🔑 Enter Your Gemini API Key",
+            type="password",
+            value=st.session_state.get("user_api_key", ""),
+            placeholder="Paste your API key here",
+            help="Your key is stored in session memory only - never saved to disk"
+        )
+        
+        # Security info and link
+        st.markdown("""
+        <div style="
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: -0.5rem;
+        ">
+            ⚠️ Get your free key at <a href="https://aistudio.google.com" target="_blank" style="color: #60a5fa;">aistudio.google.com</a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Store user key in session state (RAM only - never saved to disk)
+        if user_api_key != st.session_state.get("user_api_key", ""):
+            st.session_state.user_api_key = user_api_key
+            st.session_state.brain = None  # Reset brain to use new key
+            st.session_state.memory = None
+        
+        # Determine which key to use (BYOK priority)
+        effective_key = st.session_state.get("user_api_key", "") or st.session_state.get("api_key", "")
+        
+        # Initialize button
+        if effective_key and st.session_state.brain is None:
+            if st.button("🚀 Connect", use_container_width=True):
+                with st.spinner("Initializing AI..."):
+                    if initialize_backend(effective_key):
+                        st.success("✅ Connected!")
+                        st.rerun()
+        
+        # Show connection status
+        if st.session_state.brain:
+            key_source = "Your Key" if st.session_state.get("user_api_key") else "Admin Key"
+            st.success(f"✅ AI Connected ({key_source})")
+        elif effective_key:
+            st.info("Click 'Connect' to initialize")
+        else:
+            st.warning("⚠️ API Key required")
+        
+        st.markdown("---")
+        
+        # File Upload Section
+        st.markdown("### 📁 Project Files")
+        
+        uploaded_files = st.file_uploader(
+            "Upload your code files",
+            type=["py", "js", "jsx", "ts", "tsx", "md", "txt", "json", "css", "html"],
+            accept_multiple_files=True,
+            help="Upload project files for context-aware assistance"
+        )
+        
+        if uploaded_files and st.session_state.memory:
+            if st.button("📥 Process Files", use_container_width=True):
+                with st.spinner("Processing files..."):
+                    try:
+                        # Reset file positions for re-reading
+                        for f in uploaded_files:
+                            f.seek(0)
+                        
+                        stats = st.session_state.memory.ingest_files(uploaded_files)
+                        st.session_state.files_uploaded = True
+                        st.session_state.memory_stats = stats
+                        
+                        st.success(f"✅ Processed {stats['files_processed']} files!")
+                        
+                        if stats['files_skipped'] > 0:
+                            st.warning(f"⚠️ Skipped {stats['files_skipped']} unsupported files")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+        
+        # Show memory stats
+        if st.session_state.memory_stats:
+            stats = st.session_state.memory_stats
+            st.markdown("---")
+            st.markdown("### 📊 Memory Stats")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Files", stats['files_processed'])
+            with col2:
+                st.metric("Chunks", stats['chunks_created'])
+            
+            if stats['processed_files']:
+                with st.expander("📄 Loaded Files"):
+                    for f in stats['processed_files']:
+                        st.markdown(f"• `{f}`")
+        
+        st.markdown("---")
+        
+        # AI Settings
+        st.markdown("### 🎛️ AI Settings")
+        
+        # Smart Refiner Toggle
+        enable_refiner = st.toggle(
+            "🔄 Smart Refiner",
+            value=st.session_state.enable_refiner,
+            help="Enable self-correction loop for higher quality code. Slower but produces more accurate, error-free code."
+        )
+        
+        if enable_refiner != st.session_state.enable_refiner:
+            st.session_state.enable_refiner = enable_refiner
+        
+        if st.session_state.enable_refiner:
+            st.markdown("""
+            <div style="
+                background: rgba(99, 102, 241, 0.1);
+                border: 1px solid rgba(99, 102, 241, 0.2);
+                border-radius: 8px;
+                padding: 0.5rem;
+                font-size: 0.8rem;
+                color: #a5b4fc;
+            ">
+                ✨ Code will be reviewed and refined for errors, security issues, and best practices.
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Actions
+        st.markdown("### ⚡ Quick Actions")
+        
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
+        
+        if st.session_state.memory and st.button("🧹 Clear Memory", use_container_width=True):
+            st.session_state.memory.clear_memory()
+            st.session_state.memory_stats = None
+            st.session_state.files_uploaded = False
+            st.success("Memory cleared!")
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # Export Project Section
+        st.markdown("### 📦 Export")
+        
+        # License key check placeholder (commented out for now)
+        # def check_license_key(key: str) -> bool:
+        #     """Validate user's license key for premium features."""
+        #     # TODO: Implement license validation logic
+        #     # valid_keys = fetch_valid_keys_from_server()
+        #     # return key in valid_keys
+        #     return True
+        
+        # is_licensed = check_license_key(st.session_state.get("license_key", ""))
+        is_licensed = True  # Placeholder - license check disabled
+        
+        # Get chat history length
+        chat_len = len(st.session_state.get("chat_history", []))
+        
+        if chat_len > 0:
+            # Generate markdown on-the-fly for download
+            markdown_content = generate_project_documentation()
+            
+            st.download_button(
+                label="📦 Export to Markdown",
+                data=markdown_content,
+                file_name="Project_Documentation.md",
+                mime="text/markdown",
+                use_container_width=True,
+                key=f"export_md_btn_{chat_len}"  # Dynamic key to force refresh
+            )
+            
+            st.markdown(f"""
+            <div style="
+                font-size: 0.75rem;
+                color: #6b7280;
+                margin-top: 0.5rem;
+            ">
+                📝 {chat_len} messages ready to export
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="
+                background: rgba(107, 114, 128, 0.1);
+                border: 1px solid rgba(107, 114, 128, 0.2);
+                border-radius: 8px;
+                padding: 0.75rem;
+                font-size: 0.8rem;
+                color: #6b7280;
+                text-align: center;
+            ">
+                💬 Start a conversation to enable export
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # About
+        st.markdown("### ℹ️ About")
+        st.markdown("""
+        **CodeWeaver AI** is your intelligent 
+        coding companion powered by Google's 
+        Gemini AI with RAG capabilities.
+        
+        **Features:**
+        - 💬 Natural language coding
+        - 📁 Codebase understanding
+        - 🔍 Context-aware responses
+        - ⚡ Code generation & debug
+        - 🔄 Self-correction loop
+        - 📦 Export to Markdown
+        """)
+
+
+# =============================================================================
+# Chat Interface
+# =============================================================================
+
+def render_chat_message(role: str, content: str):
+    """Render a single chat message with styling."""
+    if role == "user":
+        st.markdown(f"""
+        <div class="chat-message user-message">
+            <strong>👤 You</strong><br><br>
+            {content}
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        with st.container():
+            st.markdown(f"""
+            <div class="chat-message assistant-message">
+                <strong>🧬 CodeWeaver</strong>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown(content)
+
+
+def render_chat():
+    """Render the main chat interface."""
+    # Header
+    st.markdown('<h1 class="main-header">CodeWeaver AI</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Your Intelligent Coding Companion with RAG • Powered by Gemini</p>', unsafe_allow_html=True)
+    
+    # Check if ready
+    if not st.session_state.brain:
+        st.markdown("---")
+        
+        # Welcome card
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            margin: 2rem 0;
+        ">
+            <h2 style="color: #e2e8f0; margin-bottom: 1rem;">👋 Welcome to CodeWeaver AI</h2>
+            <p style="color: #94a3b8; font-size: 1.1rem;">
+                To get started, enter your Google API Key in the sidebar and click Connect.
+            </p>
+            <p style="color: #6b7280; margin-top: 1rem;">
+                Get your free API key from 
+                <a href="https://makersuite.google.com/app/apikey" target="_blank" style="color: #818cf8;">
+                    Google AI Studio →
+                </a>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Feature cards
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            <div class="stat-card">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">💻</div>
+                <div style="color: #e2e8f0; font-weight: 600;">Code Generation</div>
+                <div style="color: #6b7280; font-size: 0.85rem; margin-top: 0.5rem;">
+                    Generate clean, documented code
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div class="stat-card">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
+                <div style="color: #e2e8f0; font-weight: 600;">RAG Context</div>
+                <div style="color: #6b7280; font-size: 0.85rem; margin-top: 0.5rem;">
+                    Upload files for smart context
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("""
+            <div class="stat-card">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🐛</div>
+                <div style="color: #e2e8f0; font-weight: 600;">Debug & Fix</div>
+                <div style="color: #6b7280; font-size: 0.85rem; margin-top: 0.5rem;">
+                    Find and fix bugs instantly
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        return
+    
+    st.markdown("---")
+    
+    # Context indicator
+    if st.session_state.files_uploaded:
+        st.markdown("""
+        <div style="
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        ">
+            <span style="color: #10b981;">📚 Context Active</span>
+            <span style="color: #6b7280;"> — AI will use your uploaded files for context</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Chat history container
+    chat_container = st.container()
+    
+    with chat_container:
+        for idx, message in enumerate(st.session_state.chat_history):
+            if message["role"] == "user":
+                with st.chat_message("user", avatar="👤"):
+                    st.markdown(message["content"])
+            else:
+                with st.chat_message("assistant", avatar="🧬"):
+                    # Use simple markdown for history to avoid duplicate download buttons
+                    st.markdown(message["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about coding...", key="chat_input"):
+        # Add user message to history
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": prompt
+        })
+        
+        # Display user message
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+        
+        # Generate response
+        with st.chat_message("assistant", avatar="🧬"):
+            # Show appropriate spinner message
+            if st.session_state.enable_refiner:
+                spinner_msg = "🧬 CodeWeaver is thinking & refining..."
+            else:
+                spinner_msg = "🧬 CodeWeaver is thinking..."
+            
+            with st.spinner(spinner_msg):
+                try:
+                    # Retrieve context if files are uploaded
+                    context = ""
+                    if st.session_state.memory and st.session_state.files_uploaded:
+                        context = st.session_state.memory.retrieve_context(prompt)
+                    
+                    # Generate response with optional refinement
+                    response = st.session_state.brain.generate_code(
+                        prompt, 
+                        context, 
+                        enable_refiner=st.session_state.enable_refiner
+                    )
+                    
+                    # Render response with proper code highlighting and download
+                    render_response_with_code(response)
+                    
+                    # Add to history
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response
+                    })
+                    
+                except Exception as e:
+                    error_msg = f"❌ Error: {str(e)}"
+                    st.error(error_msg)
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": error_msg
+                    })
+
+
+# =============================================================================
+# Main Application
+# =============================================================================
+
+def main():
+    """Main application entry point."""
+    # Initialize session state
+    init_session_state()
+    
+    # Render sidebar
+    render_sidebar()
+    
+    # Render main chat interface
+    render_chat()
+
+
+if __name__ == "__main__":
+    main()
