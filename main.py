@@ -978,6 +978,69 @@ def render_sidebar():
             </div>
             """, unsafe_allow_html=True)
         
+        # One-Click README Generation
+        st.markdown("---")
+        st.markdown("### 📄 Auto Documentation")
+        
+        if st.session_state.files_uploaded and st.session_state.memory_stats:
+            if st.button("📄 Generate README.md", use_container_width=True, help="Analyze your codebase and generate a professional README"):
+                if st.session_state.brain and st.session_state.memory:
+                    with st.spinner("📝 Analyzing codebase and generating README..."):
+                        try:
+                            # Get the uploaded files content from memory
+                            code_files = {}
+                            if hasattr(st.session_state.memory, 'documents') and st.session_state.memory.documents:
+                                for doc in st.session_state.memory.documents:
+                                    filename = doc.metadata.get('source', 'unknown')
+                                    content = doc.page_content
+                                    if filename not in code_files:
+                                        code_files[filename] = content
+                                    else:
+                                        code_files[filename] += "\n" + content
+                            
+                            # Generate README
+                            readme_content = st.session_state.brain.generate_readme(code_files)
+                            
+                            # Store in session state for display
+                            st.session_state.generated_readme = readme_content
+                            st.success("✅ README.md generated!")
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
+                else:
+                    st.warning("⚠️ Please connect to AI first")
+            
+            # Display generated README if available
+            if st.session_state.get("generated_readme"):
+                st.markdown("---")
+                with st.expander("📄 Generated README.md", expanded=True):
+                    st.markdown(st.session_state.generated_readme)
+                
+                # Download button
+                st.download_button(
+                    label="⬇️ Download README.md",
+                    data=st.session_state.generated_readme,
+                    file_name="README.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                    key="download_readme_btn"
+                )
+        else:
+            st.markdown("""
+            <div style="
+                background: rgba(107, 114, 128, 0.1);
+                border: 1px solid rgba(107, 114, 128, 0.2);
+                border-radius: 8px;
+                padding: 0.75rem;
+                font-size: 0.8rem;
+                color: #6b7280;
+                text-align: center;
+            ">
+                📁 Upload code files to generate README
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.markdown("---")
         
         # About

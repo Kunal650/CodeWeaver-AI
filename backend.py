@@ -565,6 +565,111 @@ If you cannot understand the audio, return: "[UNCLEAR AUDIO]"
             else:
                 return f"⚠️ Transcription failed: {error_msg}"
 
+    def generate_readme(self, code_files: dict) -> str:
+        """
+        Generate a professional README.md from the uploaded codebase.
+        Uses a Technical Writer persona for high-quality documentation.
+        
+        One-Click Documentation: Analyzes entire codebase and produces
+        a beautiful, comprehensive README.md file.
+        
+        Args:
+            code_files: Dictionary of {filename: file_content} pairs
+        
+        Returns:
+            Generated README.md content as a string.
+        """
+        try:
+            if not code_files:
+                return "⚠️ No files uploaded. Please upload your codebase first."
+            
+            # Compile all code into a single context
+            codebase_context = []
+            for filename, content in code_files.items():
+                codebase_context.append(f"""
+### File: {filename}
+```
+{content}
+```
+""")
+            
+            full_codebase = "\n".join(codebase_context)
+            
+            # Technical Writer system prompt
+            readme_prompt = f"""You are a Professional Technical Writer and Developer Advocate.
+
+TASK: Read this ENTIRE codebase carefully and write a beautiful, comprehensive README.md file.
+
+CODEBASE:
+{full_codebase}
+
+README REQUIREMENTS:
+Write a professional README.md that includes ALL of the following sections:
+
+# 📦 [Project Name]
+A compelling one-line description.
+
+## ✨ Features
+- List all major features with emojis
+- Be specific about what the code does
+
+## 🚀 Installation
+
+### Prerequisites
+- List required software/dependencies
+
+### Steps
+```bash
+# Include actual installation commands
+```
+
+## 📖 Usage
+- Show how to run the application
+- Include code examples
+- Explain key functions/classes
+
+## 🏗️ Project Structure
+```
+project/
+├── file1.py
+├── file2.js
+└── ...
+```
+Brief description of each file's purpose.
+
+## 🔧 Configuration
+Explain any environment variables or config files.
+
+## 📝 API Reference (if applicable)
+Document key functions/endpoints.
+
+## 🤝 Contributing
+How others can contribute.
+
+## 📄 License
+License information.
+
+---
+Made with ❤️
+
+IMPORTANT:
+- Make it visually beautiful with emojis and proper formatting
+- Be accurate about what the code actually does
+- Include real file names from the codebase
+- Make installation instructions work
+"""
+            
+            # Generate README using the model
+            response = self.model.generate_content(readme_prompt)
+            
+            if response and response.text:
+                return response.text
+            else:
+                return "⚠️ Could not generate README. Please try again."
+                
+        except Exception as e:
+            return f"⚠️ README generation failed: {str(e)}"
+
     def _build_prompt(self, user_prompt: str, context: str = "") -> str:
         """
         Build the complete prompt with context.
