@@ -74,6 +74,113 @@ def truncate_to_token_limit(text: str, max_tokens: int) -> str:
     return truncated
 
 
+# =============================================================================
+# Web Search Utilities
+# =============================================================================
+
+def search_web(query: str, max_results: int = 3) -> str:
+    """
+    Perform a web search for the latest documentation or error solutions.
+    Uses DuckDuckGo for privacy-friendly, free searches.
+    
+    Args:
+        query: The search query (e.g., "FastAPI latest version docs")
+        max_results: Maximum number of results to return (default: 3)
+    
+    Returns:
+        Formatted string of search results with snippets.
+    """
+    try:
+        from duckduckgo_search import DDGS
+        
+        results = []
+        with DDGS() as ddgs:
+            for idx, r in enumerate(ddgs.text(query, max_results=max_results)):
+                title = r.get('title', 'No title')
+                body = r.get('body', 'No description')
+                link = r.get('href', '')
+                
+                results.append(f"""
+📌 **{title}**
+{body}
+🔗 {link}
+""")
+        
+        if results:
+            return f"""
+🌐 **Web Search Results for:** "{query}"
+{''.join(results)}
+---
+Note: Information above is from web search. Please verify for accuracy.
+"""
+        else:
+            return f"No web results found for: {query}"
+            
+    except ImportError:
+        return "⚠️ Web search unavailable. Install duckduckgo-search package."
+    except Exception as e:
+        return f"⚠️ Web search error: {str(e)}"
+
+
+def needs_web_search(prompt: str) -> bool:
+    """
+    Detect if the user's prompt requires a web search for latest information.
+    
+    Triggers on:
+    - Questions about new/latest library versions
+    - Specific error codes or messages
+    - "How to install" latest packages
+    - New framework questions
+    
+    Args:
+        prompt: The user's input prompt.
+    
+    Returns:
+        True if web search is recommended.
+    """
+    prompt_lower = prompt.lower()
+    
+    # Keywords that suggest need for latest info
+    new_info_keywords = [
+        'latest', 'newest', 'new version', 'current version',
+        'just released', '2024', '2025', '2026',
+        'how to install', 'pip install',
+        'deprecat', 'migration guide',
+        'breaking change'
+    ]
+    
+    # Error patterns that benefit from web search
+    error_patterns = [
+        'error:', 'exception:', 'traceback',
+        'modulenotfounderror', 'importerror',
+        'attributeerror', 'typeerror',
+        'does not exist', 'not found',
+        'failed to', 'cannot find'
+    ]
+    
+    # Specific library documentation requests
+    doc_patterns = [
+        'documentation', 'docs for',
+        'api reference', 'official guide',
+        'how does', 'example of'
+    ]
+    
+    # Check for matches
+    for keyword in new_info_keywords:
+        if keyword in prompt_lower:
+            return True
+    
+    for pattern in error_patterns:
+        if pattern in prompt_lower:
+            return True
+    
+    for pattern in doc_patterns:
+        if pattern in prompt_lower:
+            return True
+    
+    return False
+
+
 class CodeBrain:
     """
     The intelligent brain of CodeWeaver AI.
@@ -93,7 +200,9 @@ class CodeBrain:
 
 5. Self-Correction: If you detect a potential security risk (like SQL injection), fix it and explain the fix.
 
-6. Tone: Concise, technical, and direct. Do not apologize. Just solve."""
+6. Tone: Concise, technical, and direct. Do not apologize. Just solve.
+
+7. Web Search: If you lack knowledge about a specific library version, new API, or error code, state that you are searching the web, then use the provided search context to answer."""
 
     def __init__(self, api_key: str = None):
         """
@@ -187,8 +296,28 @@ class CodeBrain:
             RuntimeError: If code generation fails.
         """
         try:
+            # Check if web search is needed for this prompt
+            web_context = ""
+            if needs_web_search(user_prompt):
+                print(f"🌐 Detecting need for web search in prompt...")
+                # Extract search query from prompt (use first 100 chars + key terms)
+                search_query = user_prompt[:150] + " programming documentation"
+                web_context = search_web(search_query, max_results=3)
+                print(f"   Web search completed: {len(web_context)} chars of context added")
+            
+            # Combine web context with existing context
+            combined_context = context
+            if web_context:
+                combined_context = f"""
+--- Web Search Results (Latest Information) ---
+{web_context}
+
+--- Project Context ---
+{context}
+""" if context else web_context
+            
             # Build the full prompt with context if provided
-            full_prompt = self._build_prompt(user_prompt, context)
+            full_prompt = self._build_prompt(user_prompt, combined_context)
             
             # Token limit check and truncation
             prompt_tokens = count_tokens(full_prompt)
@@ -197,9 +326,9 @@ class CodeBrain:
                 print(f"⚠️ Prompt exceeds token limit ({prompt_tokens} > {MAX_CONTEXT_TOKENS}). Truncating context...")
                 
                 # Truncate the context first
-                if context:
+                if combined_context:
                     truncated_context = truncate_to_token_limit(
-                        context, 
+                        combined_context, 
                         MAX_CONTEXT_TOKENS - count_tokens(user_prompt) - 1000  # Reserve space for prompt
                     )
                     full_prompt = self._build_prompt(user_prompt, truncated_context)
