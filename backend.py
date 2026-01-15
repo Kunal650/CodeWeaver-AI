@@ -186,6 +186,15 @@ class CodeBrain:
     The intelligent brain of CodeWeaver AI.
     Handles all AI-powered code generation and analysis.
     """
+    
+    # Available AI Models with user-friendly labels
+    AI_MODELS = {
+        "⚡ Flash (Fastest)": "gemini-2.5-flash",
+        "🧠 Pro (Smartest)": "gemini-2.5-pro",
+    }
+    
+    # Default model
+    DEFAULT_MODEL = "gemini-2.5-flash"
 
     # System prompt that defines CodeWeaver's personality and behavior
     SYSTEM_PROMPT = """You are CodeWeaver, a Principal Software Architect and 10x Engineer. Your Rules:
@@ -204,7 +213,7 @@ class CodeBrain:
 
 7. Web Search: If you lack knowledge about a specific library version, new API, or error code, state that you are searching the web, then use the provided search context to answer."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, model_name: str = None):
         """
         Initialize the CodeBrain with Google Generative AI.
         
@@ -214,6 +223,7 @@ class CodeBrain:
         
         Args:
             api_key: Optional API key provided by user. Never saved to disk.
+            model_name: Optional model name (e.g., 'gemini-2.5-flash', 'gemini-2.5-pro').
         """
         # BYOK: Use provided key, or fall back to environment variable
         if api_key and api_key.strip():
@@ -222,6 +232,9 @@ class CodeBrain:
         else:
             self.api_key = os.getenv("GOOGLE_API_KEY", "")
             self._key_source = "env"
+        
+        # Model selection
+        self.model_name = model_name or self.DEFAULT_MODEL
         
         self._validate_api_key()
         self._configure_ai()
@@ -256,7 +269,7 @@ class CodeBrain:
     def _initialize_model(self) -> None:
         """
         Initialize the Gemini model with generation configuration.
-        Uses gemini-2.0-flash as the latest free version.
+        Uses the model selected by the user (Flash or Pro).
         """
         try:
             # Generation configuration for optimal code output
@@ -267,9 +280,10 @@ class CodeBrain:
                 max_output_tokens=8192,
             )
 
-            # Initialize the model with gemini-2.5-flash
+            # Initialize the model with user-selected model
+            print(f"🧠 Initializing model: {self.model_name}")
             self.model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
+                model_name=self.model_name,
                 generation_config=generation_config,
                 system_instruction=self.SYSTEM_PROMPT
             )

@@ -590,9 +590,12 @@ def initialize_backend(api_key: str):
         # Import backend modules
         from backend import CodeBrain, CodeMemory
         
-        # Initialize brain with BYOK support - pass key directly
+        # Get selected model from session state (default to Flash)
+        selected_model = st.session_state.get("selected_model", "gemini-2.5-flash")
+        
+        # Initialize brain with BYOK support and model selection
         # Security: Key is passed in memory, not saved to environment/disk
-        st.session_state.brain = CodeBrain(api_key=api_key)
+        st.session_state.brain = CodeBrain(api_key=api_key, model_name=selected_model)
         
         # Initialize memory (for RAG) with the same key
         st.session_state.memory = CodeMemory(api_key=api_key)
@@ -717,6 +720,45 @@ def render_sidebar():
         
         # AI Settings
         st.markdown("### 🎛️ AI Settings")
+        
+        # Model Selector
+        model_options = {
+            "⚡ Flash (Fastest)": "gemini-2.5-flash",
+            "🧠 Pro (Smartest)": "gemini-2.5-pro",
+        }
+        
+        # Get current model from session state or default
+        current_model_label = st.session_state.get("selected_model_label", "⚡ Flash (Fastest)")
+        
+        selected_model_label = st.radio(
+            "🧠 AI Model Power",
+            options=list(model_options.keys()),
+            index=list(model_options.keys()).index(current_model_label),
+            help="Flash: Fast & efficient for simple tasks. Pro: Most capable for complex architecture."
+        )
+        
+        # Store in session state if changed
+        if selected_model_label != st.session_state.get("selected_model_label"):
+            st.session_state.selected_model_label = selected_model_label
+            st.session_state.selected_model = model_options[selected_model_label]
+            # Reset brain to use new model
+            if st.session_state.brain:
+                st.session_state.brain = None
+                st.info("💡 Model changed. Click 'Connect' to reinitialize with the new model.")
+        
+        # Model description
+        if "Pro" in selected_model_label:
+            st.markdown("""
+            <div style="font-size: 0.75rem; color: #fbbf24; margin-bottom: 0.5rem;">
+                🧠 Best for: Complex architecture, multi-file projects, debugging hard problems
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="font-size: 0.75rem; color: #34d399; margin-bottom: 0.5rem;">
+                ⚡ Best for: Quick scripts, simple tasks, faster responses
+            </div>
+            """, unsafe_allow_html=True)
         
         # Smart Refiner Toggle
         enable_refiner = st.toggle(
