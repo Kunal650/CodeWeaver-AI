@@ -1082,7 +1082,6 @@ def render_sidebar():
             if st.session_state.brain:
                 if test_target_file.strip():
                     try:
-                        import os
                         from backend import FileEditor, CodeBrain
                         
                         filepath = test_target_file.strip()
