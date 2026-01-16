@@ -1186,6 +1186,113 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # Git Control Center
+        st.markdown("### 🐙 Version Control")
+        
+        try:
+            from git import Repo, InvalidGitRepositoryError, GitCommandError
+            
+            try:
+                # Try to get the repo from current working directory
+                repo = Repo(os.getcwd())
+                
+                # Git Status Button
+                if st.button("📄 Status", use_container_width=True, help="Show changed files (git status)"):
+                    try:
+                        # Get status
+                        changed = [item.a_path for item in repo.index.diff(None)]
+                        staged = [item.a_path for item in repo.index.diff("HEAD")]
+                        untracked = repo.untracked_files
+                        
+                        with st.expander("📄 Git Status", expanded=True):
+                            if staged:
+                                st.markdown("**Staged Changes:**")
+                                for f in staged:
+                                    st.markdown(f"• 🟢 `{f}`")
+                            
+                            if changed:
+                                st.markdown("**Modified (not staged):**")
+                                for f in changed:
+                                    st.markdown(f"• 🟡 `{f}`")
+                            
+                            if untracked:
+                                st.markdown("**Untracked Files:**")
+                                for f in untracked[:10]:  # Limit to 10
+                                    st.markdown(f"• ⚪ `{f}`")
+                                if len(untracked) > 10:
+                                    st.markdown(f"*...and {len(untracked) - 10} more*")
+                            
+                            if not staged and not changed and not untracked:
+                                st.success("✅ Working tree clean - nothing to commit")
+                                
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                
+                # Git Commit Section
+                commit_msg = st.text_input(
+                    "Commit Message",
+                    placeholder="feat: add new feature",
+                    label_visibility="collapsed"
+                )
+                
+                if st.button("💾 Commit", use_container_width=True, help="Stage all and commit"):
+                    if commit_msg.strip():
+                        try:
+                            # Stage all changes
+                            repo.git.add(A=True)
+                            # Commit
+                            repo.index.commit(commit_msg)
+                            st.toast("✅ Committed successfully!", icon="✅")
+                            st.success(f"✅ Committed: `{commit_msg}`")
+                        except GitCommandError as e:
+                            st.error(f"❌ Git error: {str(e)}")
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
+                    else:
+                        st.warning("⚠️ Please enter a commit message")
+                
+                # Git Push Button
+                if st.button("🚀 Push", use_container_width=True, help="Push to remote"):
+                    try:
+                        origin = repo.remote(name='origin')
+                        push_info = origin.push()
+                        st.toast("🚀 Pushed successfully!", icon="🚀")
+                        st.success("✅ Pushed to remote!")
+                    except GitCommandError as e:
+                        error_msg = str(e)
+                        if "rejected" in error_msg:
+                            st.error("❌ Push rejected. Pull first: `git pull`")
+                        elif "Could not read from remote" in error_msg:
+                            st.error("❌ Remote not accessible. Check your credentials.")
+                        else:
+                            st.error(f"❌ Push failed: {error_msg}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                
+                # Show current branch
+                try:
+                    current_branch = repo.active_branch.name
+                    st.markdown(f"""
+                    <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
+                        📍 Branch: <code>{current_branch}</code>
+                    </div>
+                    """, unsafe_allow_html=True)
+                except:
+                    pass
+                    
+            except InvalidGitRepositoryError:
+                st.warning("⚠️ No Git repo found")
+                st.markdown("""
+                <div style="font-size: 0.8rem; color: #6b7280;">
+                    Run <code>git init</code> to initialize
+                </div>
+                """, unsafe_allow_html=True)
+                
+        except ImportError:
+            st.info("ℹ️ GitPython not installed. Run: `pip install GitPython`")
+        
+        st.markdown("---")
+        
         # About
         st.markdown("### ℹ️ About")
         st.markdown("""
