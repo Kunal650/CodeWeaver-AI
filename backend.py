@@ -801,6 +801,134 @@ IMPORTANT:
         except Exception as e:
             return f"⚠️ README generation failed: {str(e)}"
 
+    def generate_tests(self, code: str, filename: str) -> str:
+        """
+        Generate pytest unit tests for the provided code.
+        
+        Auto-Test Generator: Analyzes code and creates comprehensive tests.
+        
+        Args:
+            code: The source code to generate tests for.
+            filename: The original filename (for naming the test file).
+        
+        Returns:
+            Generated pytest test code as a string.
+        """
+        try:
+            test_prompt = f"""You are an Expert QA Engineer and Test Automation Specialist.
+
+TASK: Analyze this Python code and generate comprehensive pytest unit tests.
+
+CODE TO TEST:
+```python
+{code}
+```
+
+ORIGINAL FILENAME: {filename}
+
+REQUIREMENTS:
+1. Use pytest (not unittest)
+2. Test ALL functions and methods
+3. Include edge cases (empty inputs, None values, invalid types)
+4. Include happy path tests
+5. Use descriptive test names: test_function_name_what_it_tests
+6. Add docstrings explaining each test
+7. Use fixtures where appropriate
+8. Mock external dependencies if needed
+
+OUTPUT FORMAT:
+```python
+import pytest
+# ... your complete test code
+```
+
+IMPORTANT:
+- Generate COMPLETE, RUNNABLE test code
+- No placeholders or TODOs
+- The test file should pass when the original code works correctly
+"""
+            
+            response = self.model.generate_content(test_prompt)
+            
+            if response and response.text:
+                return response.text
+            else:
+                return "⚠️ Could not generate tests. Please try again."
+                
+        except Exception as e:
+            return f"⚠️ Test generation failed: {str(e)}"
+
+    @staticmethod
+    def run_tests(test_filepath: str) -> dict:
+        """
+        Run pytest on the specified test file and capture results.
+        
+        Args:
+            test_filepath: Path to the test file to run.
+        
+        Returns:
+            Dictionary with success, output, passed, failed counts.
+        """
+        import subprocess
+        
+        result = {
+            "success": False,
+            "output": "",
+            "passed": 0,
+            "failed": 0,
+            "errors": 0,
+            "return_code": -1
+        }
+        
+        try:
+            # Run pytest with verbose output
+            process = subprocess.run(
+                ["python", "-m", "pytest", test_filepath, "-v", "--tb=short"],
+                capture_output=True,
+                text=True,
+                timeout=60  # 60 second timeout
+            )
+            
+            result["return_code"] = process.returncode
+            result["output"] = process.stdout + process.stderr
+            
+            # Parse results from output
+            output = result["output"]
+            
+            # Count passed/failed from output
+            if "passed" in output:
+                import re
+                passed_match = re.search(r'(\d+) passed', output)
+                if passed_match:
+                    result["passed"] = int(passed_match.group(1))
+            
+            if "failed" in output:
+                import re
+                failed_match = re.search(r'(\d+) failed', output)
+                if failed_match:
+                    result["failed"] = int(failed_match.group(1))
+            
+            if "error" in output.lower():
+                import re
+                error_match = re.search(r'(\d+) error', output)
+                if error_match:
+                    result["errors"] = int(error_match.group(1))
+            
+            # Success if return code is 0
+            result["success"] = process.returncode == 0
+            
+            return result
+            
+        except subprocess.TimeoutExpired:
+            result["output"] = "⚠️ Test execution timed out (60s limit)"
+            return result
+        except FileNotFoundError:
+            result["output"] = "⚠️ pytest not found. Run: pip install pytest"
+            return result
+        except Exception as e:
+            result["output"] = f"⚠️ Error running tests: {str(e)}"
+            return result
+
     def _build_prompt(self, user_prompt: str, context: str = "") -> str:
         """
         Build the complete prompt with context.

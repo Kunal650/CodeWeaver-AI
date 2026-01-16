@@ -1067,6 +1067,158 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # Auto-Test Generator Section
+        st.markdown("### 🐞 Auto-Test Generator")
+        
+        # File input for testing
+        test_target_file = st.text_input(
+            "Python file to test",
+            placeholder="e.g., utils.py or /path/to/file.py",
+            label_visibility="collapsed",
+            key="test_target_input"
+        )
+        
+        if st.button("🐞 Gen & Run Tests", use_container_width=True, help="Generate and run pytest tests"):
+            if st.session_state.brain:
+                if test_target_file.strip():
+                    try:
+                        import os
+                        from backend import FileEditor, CodeBrain
+                        
+                        filepath = test_target_file.strip()
+                        
+                        # Read the source file
+                        if os.path.exists(filepath):
+                            with open(filepath, 'r', encoding='utf-8') as f:
+                                code = f.read()
+                        elif st.session_state.memory and hasattr(st.session_state.memory, 'documents'):
+                            # Try to find in uploaded files
+                            code = None
+                            for doc in st.session_state.memory.documents:
+                                if doc.metadata.get('source', '').endswith(filepath):
+                                    code = doc.page_content
+                                    break
+                            if not code:
+                                st.error(f"❌ File not found: {filepath}")
+                                st.stop()
+                        else:
+                            st.error(f"❌ File not found: {filepath}")
+                            st.stop()
+                        
+                        with st.spinner("🔍 Analyzing code and generating tests..."):
+                            # Generate test code
+                            test_response = st.session_state.brain.generate_tests(code, filepath)
+                            
+                            # Extract Python code from response
+                            import re
+                            code_match = re.search(r'```python\n(.*?)```', test_response, re.DOTALL)
+                            if code_match:
+                                test_code = code_match.group(1)
+                            else:
+                                test_code = test_response
+                            
+                            # Create test filename
+                            basename = os.path.basename(filepath)
+                            name, ext = os.path.splitext(basename)
+                            test_filename = f"test_{name}.py"
+                            test_filepath = os.path.join(os.path.dirname(filepath) or ".", test_filename)
+                            
+                            # Save test file using FileEditor
+                            save_result = FileEditor.safe_write_file(test_filepath, test_code)
+                            
+                            if save_result["success"]:
+                                st.success(f"✅ Created: `{test_filename}`")
+                                
+                                # Run the tests
+                                with st.spinner("🧪 Running pytest..."):
+                                    test_result = CodeBrain.run_tests(test_filepath)
+                                
+                                # Display results
+                                if test_result["success"]:
+                                    # All tests passed - green box
+                                    st.markdown(f"""
+                                    <div style="
+                                        background: rgba(16, 185, 129, 0.15);
+                                        border: 2px solid #10b981;
+                                        border-radius: 10px;
+                                        padding: 1rem;
+                                        margin: 0.5rem 0;
+                                    ">
+                                        <h4 style="color: #10b981; margin: 0;">✅ All Tests Passed!</h4>
+                                        <p style="color: #a7f3d0; margin: 0.5rem 0;">
+                                            🟢 {test_result['passed']} passed
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    st.toast("✅ All tests passed!", icon="✅")
+                                else:
+                                    # Tests failed - red box
+                                    st.markdown(f"""
+                                    <div style="
+                                        background: rgba(239, 68, 68, 0.15);
+                                        border: 2px solid #ef4444;
+                                        border-radius: 10px;
+                                        padding: 1rem;
+                                        margin: 0.5rem 0;
+                                    ">
+                                        <h4 style="color: #ef4444; margin: 0;">❌ Tests Failed</h4>
+                                        <p style="color: #fca5a5; margin: 0.5rem 0;">
+                                            🟢 {test_result['passed']} passed | 
+                                            🔴 {test_result['failed']} failed
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    # Show test output
+                                    with st.expander("📋 Test Output", expanded=True):
+                                        st.code(test_result["output"], language="text")
+                                    
+                                    # Auto-prompt to fix
+                                    st.warning("🔧 Generating fix suggestions...")
+                                    
+                                    fix_prompt = f"""The following tests FAILED:
+
+{test_result['output']}
+
+ORIGINAL CODE ({filepath}):
+```python
+{code}
+```
+
+Analyze the test failures and fix the code. Provide the corrected version."""
+                                    
+                                    fix_response = st.session_state.brain.generate_code(fix_prompt)
+                                    
+                                    # Add to chat for visibility
+                                    st.session_state.chat_history.append({
+                                        "role": "user",
+                                        "content": f"🐞 [Auto-Test] Fix code based on test failures for `{filepath}`"
+                                    })
+                                    st.session_state.chat_history.append({
+                                        "role": "assistant",
+                                        "content": fix_response
+                                    })
+                                    
+                                    st.info("💡 Fix suggestions added to chat. Review and apply.")
+                            else:
+                                st.error(f"❌ Could not save test file: {save_result['message']}")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                else:
+                    st.warning("⚠️ Please enter a Python file path")
+            else:
+                st.warning("⚠️ Connect to AI first")
+        
+        st.markdown("""
+        <div style="font-size: 0.75rem; color: #6b7280;">
+            Enter filename → Generates tests → Runs pytest → Shows results
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+        
         # Export Project Section
         st.markdown("### 📦 Export")
         
